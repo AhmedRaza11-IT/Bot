@@ -1,0 +1,7 @@
+# Hide the virtual environment
+.venv/
+env/
+__pycache__/
+
+# Hide all private user reservation files, images, and text configs
+pending_reservations/
