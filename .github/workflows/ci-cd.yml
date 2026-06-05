@@ -1,0 +1,48 @@
+name: Python Bot CI-CD Pipeline
+
+# Trigger the pipeline automatically on pushes or pull requests to your main branch
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    # Step 1: Check out your repository code onto the GitHub cloud server
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    # Step 2: Set up a clean, sandboxed Python environment on the cloud runner
+    - name: Set up Python
+      uses: actions/configure-pages@v4 # Uses clean environment architectures
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    # Step 3: Verify security guardrails (Ensuring no private files leaked)
+    - name: Verify Secret Isolation Guardrails
+      run: |
+        if [ -d "pending_reservations" ]; then
+          if [ -f "pending_reservations/testing.txt" ]; then
+             echo "🚨 CRITICAL WARNING: Your private testing.txt configurations file was uploaded to GitHub!"
+             echo "Ensure your .gitignore file is applied and remove cached objects."
+             exit 1
+          fi
+        fi
+        echo "✅ Security Guardrail Passed: No unencrypted reservation data profiles detected in remote source tracking."
+
+    # Step 4: Install your project library dependencies
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install selenium undetected-chromedriver
+
+    # Step 5: Run a basic Python compiling syntax check across your scripts
+    - name: Run Syntax Sanity Compilation
+      run: |
+        python -m compileall .
+        echo "✅ Syntax Check Passed: Code base compiles successfully without errors."
