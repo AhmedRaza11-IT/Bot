@@ -1,0 +1,12 @@
+Email: your_bls_email@gmail.com
+Password: YourBLSPassword123
+Gmail App Password: your_twostep_app_password
+Center: Karachi
+Service Subtype: work
+Service Type: National Visa
+Category: individual
+Preferred Date: 6/30/2026
+Travel Date: 7/15/2026
+Proxy: 192.168.1.1:8080:user123:pass456
+IP Rotator: False
+Play Sound: True
