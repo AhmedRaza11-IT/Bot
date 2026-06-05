@@ -1,6 +1,5 @@
 name: Python Bot CI-CD Pipeline
 
-# Trigger the pipeline automatically on pushes or pull requests to your main branch
 on:
   push:
     branches: [ main, master ]
@@ -12,13 +11,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # Step 1: Check out your repository code onto the GitHub cloud server
+    # Step 1: Check out your repository code
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    # Step 2: Set up a clean, sandboxed Python environment on the cloud runner
+    # Step 2: Set up a clean Python environment on the cloud runner
     - name: Set up Python
-      uses: actions/configure-pages@v4 # Uses clean environment architectures
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
