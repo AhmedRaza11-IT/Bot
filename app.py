@@ -1,3 +1,28 @@
+# ── Fix FFmpeg PATH before pydub is imported anywhere ─────────────────────
+import os, glob, shutil
+
+def _fix_ffmpeg_path():
+    # Already on PATH?
+    if shutil.which("ffmpeg"):
+        return
+    # Winget (Gyan build) install location
+    pattern = os.path.expandvars(
+        r"%LOCALAPPDATA%\Microsoft\WinGet\Packages\Gyan.FFmpeg*\**\ffmpeg.exe"
+    )
+    matches = glob.glob(pattern, recursive=True)
+    if matches:
+        ffmpeg_dir = os.path.dirname(matches[0])
+        os.environ["PATH"] = ffmpeg_dir + os.pathsep + os.environ.get("PATH", "")
+        return
+    # Common manual paths
+    for p in [r"C:\ffmpeg\bin", r"C:\Program Files\ffmpeg\bin"]:
+        if os.path.exists(os.path.join(p, "ffmpeg.exe")):
+            os.environ["PATH"] = p + os.pathsep + os.environ.get("PATH", "")
+            return
+
+_fix_ffmpeg_path()
+# ──────────────────────────────────────────────────────────────────────────
+
 import tkinter as tk
 
 class LoginWindow:

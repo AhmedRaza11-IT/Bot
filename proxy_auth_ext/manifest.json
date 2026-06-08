@@ -1,0 +1,8 @@
+{
+        "version": "1.0.0",
+        "manifest_version": 3,
+        "name": "Native Chrome Proxy Auth Wrapper",
+        "permissions": ["proxy", "tabs", "unlimitedStorage", "storage", "webRequest", "webRequestAuthProvider"],
+        "host_permissions": ["<all_urls>"],
+        "background": { "service_worker": "background.js" }
+    }
