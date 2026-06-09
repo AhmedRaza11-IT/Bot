@@ -22,6 +22,7 @@ import winsound
 import subprocess
 from datetime import datetime
 from typing import Optional
+from urllib.parse import urlparse
 
 import undetected_chromedriver as uc
 from selenium.webdriver.common.by import By
@@ -70,15 +71,23 @@ def _wait(driver, secs=ELEMENT_WAIT) -> WebDriverWait:
     return WebDriverWait(driver, secs)
 
 
-def _find(driver, *css_selectors, timeout=ELEMENT_WAIT, allow_hidden=False):
-    """Try multiple CSS selectors in order, return first match."""
+def _find(driver, *selectors, timeout=ELEMENT_WAIT, allow_hidden=False):
+    """Try multiple selectors (CSS or XPath) in order, find elements, and return the first visible match."""
     end = time.time() + timeout
     while time.time() < end:
-        for sel in css_selectors:
+        for sel in selectors:
             try:
-                el = driver.find_element(By.CSS_SELECTOR, sel)
-                if allow_hidden or el.is_displayed():
-                    return el
+                if sel.startswith("/") or sel.startswith("./") or sel.startswith("xpath:"):
+                    by_type = By.XPATH
+                    query = sel.replace("xpath:", "")
+                else:
+                    by_type = By.CSS_SELECTOR
+                    query = sel
+                
+                elements = driver.find_elements(by_type, query)
+                for el in elements:
+                    if allow_hidden or el.is_displayed():
+                        return el
             except Exception:
                 pass
         time.sleep(0.5)
@@ -261,6 +270,7 @@ def _do_login(driver, config: dict, log) -> bool:
     log("📧 Step 1 — Entering email address...")
     email_el = _find(driver,
         "input[type='email']",
+        "input[type='text']",
         "input[name='Email']",
         "input[id*='email' i]",
         "input[placeholder*='email' i]",
@@ -333,6 +343,19 @@ def _do_login(driver, config: dict, log) -> bool:
             "input[id*='captcha' i]", "input[name*='captcha' i]",
             ".captcha-input", "#CaptchaInputText",
         )
+        if not captcha_el and answer:
+            # Fallback heuristic: find visible, enabled text input that isn't the email field (doesn't contain '@')
+            try:
+                inputs = driver.find_elements(By.CSS_SELECTOR, "input[type='text']")
+                for inp in inputs:
+                    if inp.is_displayed() and inp.is_enabled():
+                        val = inp.get_attribute("value") or ""
+                        if "@" not in val:
+                            captcha_el = inp
+                            break
+            except Exception:
+                pass
+        
         if answer and captcha_el:
             pos = _click(driver, captcha_el, pos)
             human_type(captcha_el, answer)
@@ -451,7 +474,8 @@ def _is_logged_in(driver) -> bool:
     """Heuristic check — are we past the login page?"""
     try:
         url = driver.current_url.lower()
-        path = url.split("?")[0]
+        parsed = urlparse(url)
+        path = parsed.path
 
         # Explicitly not logged in if on the login page
         if "login" in path:
@@ -657,6 +681,18 @@ def _book_slot(driver, config: dict, log, gui_handle) -> bool:
             "input[id*='captcha' i]",
             "input[name*='captcha' i]",
         )
+        if not captcha_input and answer:
+            try:
+                inputs = driver.find_elements(By.CSS_SELECTOR, "input[type='text']")
+                for inp in inputs:
+                    if inp.is_displayed() and inp.is_enabled():
+                        val = inp.get_attribute("value") or ""
+                        if "@" not in val:
+                            captcha_input = inp
+                            break
+            except Exception:
+                pass
+
         if answer and captcha_input:
             pos = _click(driver, captcha_input, pos)
             human_type(captcha_input, answer)
