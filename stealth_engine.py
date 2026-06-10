@@ -119,7 +119,6 @@ def get_chrome_options(proxy_str=None, user_agent=None, ext_folder=None):
         uc.ChromeOptions
     """
     options = uc.ChromeOptions()
-    ua = user_agent or get_random_ua()
 
     # ── L2: Core anti-detection Chrome flags ─────────────────────────────
     options.add_argument("--disable-blink-features=AutomationControlled")
@@ -131,7 +130,8 @@ def get_chrome_options(proxy_str=None, user_agent=None, ext_folder=None):
     options.add_argument("--ignore-certificate-errors")
     options.add_argument("--allow-running-insecure-content")
     options.add_argument("--lang=en-US")
-    options.add_argument(f"--user-agent={ua}")
+    if user_agent:
+        options.add_argument(f"--user-agent={user_agent}")
 
     # ── L5: Random viewport (noise to prevent canvas fingerprinting) ──────
     width  = random.choice([1280, 1366, 1440, 1536, 1920]) + random.randint(-15, 15)
@@ -226,23 +226,31 @@ def human_move_to(driver, element, current_pos=(100, 100)):
     tx   = loc['x'] + size['width']  // 2
     ty   = loc['y'] + size['height'] // 2
 
-    points = _bezier_points(current_pos, (tx, ty))
-    actions = ActionChains(driver)
-    px, py  = current_pos
+    try:
+        points = _bezier_points(current_pos, (tx, ty))
+        actions = ActionChains(driver)
+        px, py  = current_pos
 
-    for (qx, qy) in points:
-        dx, dy = qx - px, qy - py
-        if dx == 0 and dy == 0:
-            continue
-        actions.move_by_offset(dx, dy)
-        px, py = qx, qy
+        for (qx, qy) in points:
+            dx, dy = qx - px, qy - py
+            if dx == 0 and dy == 0:
+                continue
+            actions.move_by_offset(dx, dy)
+            px, py = qx, qy
 
-    actions.perform()
+        actions.perform()
 
-    # Slight final jitter before click
-    jitter = ActionChains(driver)
-    jitter.move_by_offset(random.randint(-2, 2), random.randint(-2, 2)).perform()
-    time.sleep(random.uniform(0.08, 0.25))
+        # Slight final jitter before click
+        jitter = ActionChains(driver)
+        jitter.move_by_offset(random.randint(-2, 2), random.randint(-2, 2)).perform()
+        time.sleep(random.uniform(0.08, 0.25))
+    except Exception:
+        # Fallback to standard move_to_element
+        try:
+            ActionChains(driver).move_to_element(element).perform()
+        except Exception:
+            pass
+            
     return (tx, ty)
 
 

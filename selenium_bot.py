@@ -96,8 +96,20 @@ def _find(driver, *selectors, timeout=ELEMENT_WAIT, allow_hidden=False):
 
 def _click(driver, element, current_pos=(100, 100)):
     """Human-like move + click on an element."""
-    new_pos = human_move_to(driver, element, current_pos)
-    element.click()
+    new_pos = current_pos
+    try:
+        new_pos = human_move_to(driver, element, current_pos)
+        element.click()
+    except Exception:
+        try:
+            # Fallback to standard native click first
+            element.click()
+        except Exception:
+            try:
+                # Last resort JS click
+                driver.execute_script("arguments[0].click();", element)
+            except Exception:
+                pass
     micro_delay()
     return new_pos
 
@@ -336,29 +348,30 @@ def _do_login(driver, config: dict, log) -> bool:
     human_delay(0.5, 1.0)
 
     # Solve CAPTCHA if present at step 2
-    if solver._has_recaptcha() or solver._find_captcha_image():
+    if solver._has_recaptcha() or solver._find_captcha_image() or solver._is_tile_captcha():
         log("🧩 CAPTCHA on step 2 — solving...")
         answer = solver.solve()
-        captcha_el = _find(driver,
-            "input[id*='captcha' i]", "input[name*='captcha' i]",
-            ".captcha-input", "#CaptchaInputText",
-        )
-        if not captcha_el and answer:
-            # Fallback heuristic: find visible, enabled text input that isn't the email field (doesn't contain '@')
-            try:
-                inputs = driver.find_elements(By.CSS_SELECTOR, "input[type='text']")
-                for inp in inputs:
-                    if inp.is_displayed() and inp.is_enabled():
-                        val = inp.get_attribute("value") or ""
-                        if "@" not in val:
-                            captcha_el = inp
-                            break
-            except Exception:
-                pass
-        
-        if answer and captcha_el:
-            pos = _click(driver, captcha_el, pos)
-            human_type(captcha_el, answer)
+        if answer != "TILES_CLICKED":
+            captcha_el = _find(driver,
+                "input[id*='captcha' i]", "input[name*='captcha' i]",
+                ".captcha-input", "#CaptchaInputText",
+            )
+            if not captcha_el and answer:
+                # Fallback heuristic: find visible, enabled text input that isn't the email field (doesn't contain '@')
+                try:
+                    inputs = driver.find_elements(By.CSS_SELECTOR, "input[type='text']")
+                    for inp in inputs:
+                        if inp.is_displayed() and inp.is_enabled():
+                            val = inp.get_attribute("value") or ""
+                            if "@" not in val:
+                                captcha_el = inp
+                                break
+                except Exception:
+                    pass
+            
+            if answer and captcha_el:
+                pos = _click(driver, captcha_el, pos)
+                human_type(captcha_el, answer)
 
     # Click Login / Submit button
     submit_el = _find(driver,
