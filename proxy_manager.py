@@ -157,35 +157,14 @@ def _validate_proxy(entry: ProxyEntry) -> Optional[ProxyEntry]:
 
 
 # ── Fetch free proxies from public sources ────────────────────────────────
-def _fetch_free_proxies(n=30) -> List["ProxyEntry"]:
+def _fetch_free_proxies(n=50) -> List["ProxyEntry"]:
     """
     Fetch free proxy strings from multiple public sources and return
     a list of ProxyEntry objects.
     """
     raw_list = []
 
-    # Source 1: free-proxy library
-    if _HAS_FREE_PROXY:
-        try:
-            for _ in range(n):
-                p = FreeProxy(timeout=1.5, rand=True, anonym=True).get()
-                if p:
-                    raw_list.append(p.replace("http://", "").replace("https://", ""))
-        except Exception:
-            pass
-
-    # Source 2: proxy-list.download API
-    try:
-        r = requests.get(
-            "https://www.proxy-list.download/api/v1/get?type=https",
-            timeout=8
-        )
-        if r.status_code == 200:
-            raw_list.extend(r.text.strip().splitlines())
-    except Exception:
-        pass
-
-    # Source 3: proxylist.geonode.com
+    # Source 1: proxylist.geonode.com
     try:
         r = requests.get(
             "https://proxylist.geonode.com/api/proxy-list?limit=50&sort_by=lastChecked&sort_type=desc&protocols=http",
@@ -199,7 +178,22 @@ def _fetch_free_proxies(n=30) -> List["ProxyEntry"]:
     except Exception:
         pass
 
-    return [ProxyEntry(r) for r in set(raw_list) if r.strip()]
+    # Source 2: SpeedX GitHub list (HTTP)
+    try:
+        r = requests.get(
+            "https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/http.txt",
+            timeout=8
+        )
+        if r.status_code == 200:
+            raw_list.extend(r.text.strip().splitlines())
+    except Exception:
+        pass
+
+    # Shuffle to distribute geographic locations and raw lists
+    unique_raw = list(set(raw_list))
+    random.shuffle(unique_raw)
+
+    return [ProxyEntry(r) for r in unique_raw[:n] if r.strip()]
 
 
 class ProxyManager:
@@ -290,6 +284,11 @@ class ProxyManager:
         """
         if not self._enabled:
             return None
+
+        # If pool is empty on startup, wait for the background builder thread
+        start_time = time.time()
+        while not self._pool and (time.time() - start_time < 20):
+            time.sleep(0.5)
 
         self._maybe_refresh()
 
